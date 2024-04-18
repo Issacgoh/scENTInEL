@@ -31,6 +31,7 @@ Antony Rose, Newcastle University; Sanger institute (https://haniffalab.com/team
 
 ### Contact
 Issac Goh, (ig7@sanger.ac.uk)
+Antony Rose, (ar32@sanger.ac.uk)
 
 ## Built With
 - [Scanpy](https://scanpy.readthedocs.io/en/stable/) - An analysis environment for single-cell genomics.
