@@ -21,7 +21,7 @@ with open(os.devnull, 'w') as nullfile:
                 "psutil==5.9.5",
                 "mygene==3.2.2",
                 "gseapy==1.0.5",
-                "pymc3==3.11.5",
+                #"pymc3==3.11.5",
                 "scikit-optimize"
             ],
         )
