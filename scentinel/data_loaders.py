@@ -103,7 +103,7 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import pandas as pd
-import pymc3 as pm
+#import pymc3 as pm
 from scipy.sparse import csr_matrix
 from scipy.stats import entropy
 # Data_model_loaders
