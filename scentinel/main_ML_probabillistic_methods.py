@@ -424,7 +424,7 @@ def tune_lr_model(adata, train_x_partition = 'X', random_state = 42, use_bayes_o
             sc.tl.leiden(adata_tuning)
         tune_train_label = adata_tuning.obs['leiden']
     ## tune regularization for multinomial logistic regression
-    print('starting tuning loops')
+    print('starting tuning loops (V0.2.1)')
     X = tune_train_x
     y = tune_train_label
     #model = LogisticRegression(penalty = penalty, max_iter =  200, dual=False,solver = 'saga', multi_class = 'multinomial',)
@@ -495,7 +495,6 @@ def prep_training_data(adata_temp,feat_use,batch_key, model_key, batch_correctio
         for key, value in kwargs.items():
             globals()[key] = value
         kwargs.update(locals())
-        print(sparcity)
     model_name = model_key + '_lr_model'
     #scale the input data
     if partial_scale == True:
