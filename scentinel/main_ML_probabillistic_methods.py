@@ -30,84 +30,38 @@
 #    subprocess.check_call([python, '-m', 'pip', 'install', *missing], stdout=subprocess.DEVNULL)
 import sys
 import subprocess
-from collections import Counter
-from collections import defaultdict
-import scanpy as sc
-import pandas as pd
-import pickle as pkl
-import numpy as np
-import scipy
-import matplotlib.pyplot as plt
-import re
-import glob
-import os
-import sys
-#from geosketch import gs
-from numpy import cov
-import scipy.cluster.hierarchy as spc
-import seaborn as sns; sns.set(color_codes=True)
-from sklearn.linear_model import LogisticRegression
-import sklearn
-from pathlib import Path
-import requests
-import psutil
 import random
 import threading
 import tracemalloc
 import itertools
 import math
 import warnings
-import sklearn.metrics as metrics
-from collections import Counter
-from collections import defaultdict
-import scanpy as sc
-import pandas as pd
-import pickle as pkl
-import numpy as np
-import scipy
-import matplotlib.pyplot as plt
-import re
-import glob
 import os
-import sys
-#from geosketch import gs
-from numpy import cov
-import scipy.cluster.hierarchy as spc
-import seaborn as sns; sns.set(color_codes=True)
-from sklearn.linear_model import LogisticRegression
-import sklearn
-from pathlib import Path
+import glob
+import re
 import requests
 import psutil
-import random
-import threading
-import tracemalloc
-import itertools
-import math
-import warnings
-import sklearn.metrics as metrics
+from pathlib import Path
+from collections import Counter, defaultdict
 import numpy as np
-from sklearn.metrics import log_loss
-import mygene
+import pandas as pd
+import scipy
+import scipy.sparse as sparse
+import scipy.cluster.hierarchy as spc
+from scipy.stats import entropy
+from numpy import cov
+import matplotlib.pyplot as plt
+import seaborn as sns
+import scanpy as sc
+import sklearn
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold, StratifiedShuffleSplit
+from sklearn.metrics import log_loss, fbeta_score, make_scorer, confusion_matrix, metrics
+from sklearn.metrics.pairwise import cosine_similarity
+from skopt import BayesSearchCV
 import gseapy as gp
 import mygene
-import scipy.sparse as sparse
-from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.model_selection import cross_val_score
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn import metrics
-import seaborn as sn
-import pandas as pd
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
 
-import numpy as np
-import pandas as pd
-#import pymc3 as pm
-from scipy.sparse import csr_matrix
-from scipy.stats import entropy
-from sklearn.metrics import fbeta_score, make_scorer
-# main_probabillistic_training_projection_modules
     
 # projection module
 def reference_projection(adata,model,partial_scale=False,train_x_partition='X', **kwargs):
@@ -256,7 +210,124 @@ def LR_train(adata, train_x_partition, train_label, penalty='elasticnet', sparci
     #model.features = np.array(adata.var.index)
     return model
 
-def tune_lr_model(adata, train_x_partition = 'X', random_state = 42, use_bayes_opt=True, penalty='elasticnet', sparcity = 0.2,l1_ratio=0.5,train_label = None, n_splits=5, n_repeats=3,l1_grid = [0.1,0.2,0.5,0.8], c_grid = [0.1,0.2,0.4,0.6],thread_num = -1,loss= 'logloss',sketch_tune = False, **kwargs):
+
+
+def tune_lr_model(adata, train_x_partition='X', random_state=42, use_bayes_opt=True, penalty='elasticnet', 
+                  sparcity=0.2, l1_ratio=0.5, train_label=None, n_splits=5, n_repeats=3, l1_grid=[0.1, 0.2, 0.5, 0.8], 
+                  c_grid=[0.1, 0.2, 0.4, 0.6], thread_num=-1, loss='logloss', sketch_tune=False, **kwargs):
+    """
+    Perform hyperparameter tuning for a logistic regression model with stratified cross-validation.
+
+    Parameters:
+    ----------
+    adata : AnnData
+        The input annotated data matrix.
+    train_x_partition : str, default='X'
+        The partition of the data to be used for training (e.g., 'X' or other latent representations).
+    random_state : int, default=42
+        The seed used by the random number generator.
+    use_bayes_opt : bool, default=True
+        If True, use Bayesian optimization for hyperparameter tuning; otherwise, use grid search.
+    penalty : str, default='elasticnet'
+        The penalty type to be used in logistic regression ('l1', 'l2', or 'elasticnet').
+    sparcity : float, default=0.2
+        The regularization strength (inverse of regularization parameter) for logistic regression.
+    l1_ratio : float, default=0.5
+        The L1 ratio used when penalty is set to 'elasticnet'.
+    train_label : str or None, default=None
+        The column name in adata.obs containing the target labels. If None, unsupervised clustering is used to generate labels.
+    n_splits : int, default=5
+        Number of splits for cross-validation.
+    n_repeats : int, default=3
+        Number of repetitions for cross-validation.
+    l1_grid : list, default=[0.1, 0.2, 0.5, 0.8]
+        Grid values for L1 ratio used in hyperparameter tuning.
+    c_grid : list, default=[0.1, 0.2, 0.4, 0.6]
+        Grid values for the regularization parameter C.
+    thread_num : int, default=-1
+        The number of jobs to run in parallel. -1 means using all processors.
+    loss : str, default='logloss'
+        The scoring metric to be used for evaluating the models.
+    sketch_tune : bool, default=False
+        If True, uses sketch-based sampling for initial model training.
+    **kwargs : dict
+        Additional keyword arguments.
+
+    Returns:
+    -------
+    results : sklearn.model_selection._search.BaseSearchCV
+        The result object containing the best model, parameters, and scores from the hyperparameter tuning process.
+    """
+    # Unpack kwargs if necessary
+    if kwargs:
+        for key, value in kwargs.items():
+            globals()[key] = value
+        kwargs.update(locals())
+    
+    r = np.random.RandomState(random_state)
+    # Initialize data sampling and model setup as in your original code
+
+    # Ensure that the labels are properly set
+    if not train_label is None:
+        tune_train_label = adata_tuning.obs[train_label]
+    else:
+        # Perform clustering to create default labels if none are provided
+        try:
+            print('No training labels provided, using unsupervised Leiden clustering.')
+            sc.tl.leiden(adata_tuning)
+        except:
+            print('Leiden clustering failed, performing preprocessing first.')
+            sc.pp.neighbors(adata_tuning, n_neighbors=15, n_pcs=50)
+            sc.tl.leiden(adata_tuning)
+        tune_train_label = adata_tuning.obs['leiden']
+
+    X = tune_train_x
+    y = tune_train_label.values  # Ensure y is in the correct format
+
+    # Check if all classes are present
+    unique_classes = np.unique(y)
+    print(f"Unique classes in y: {unique_classes}")
+
+    # Define model parameters based on penalty type
+    model = LogisticRegression(penalty=penalty, C=sparcity, max_iter=150, n_jobs=thread_num)
+    if penalty == "l1":
+        model = LogisticRegression(penalty=penalty, C=sparcity, max_iter=150, dual=True, solver='liblinear',
+                                   multi_class='multinomial', n_jobs=thread_num)
+    elif penalty == "elasticnet":
+        model = LogisticRegression(penalty=penalty, C=sparcity, max_iter=150, dual=False, solver='saga', 
+                                   l1_ratio=l1_ratio, multi_class='multinomial', n_jobs=thread_num)
+
+    # Ensure the use of Stratified sampling strategy
+    cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
+
+    # Define scoring function
+    LogLoss = make_scorer(log_loss, greater_is_better=False, needs_proba=True)
+
+    # Define the search strategy
+    if use_bayes_opt:
+        search_space = {'C': (np.min(c_grid), np.max(c_grid), 'log-uniform'), 
+                        'l1_ratio': (np.min(l1_grid), np.max(l1_grid), 'uniform') if 'elasticnet' in penalty else None}
+        search = BayesSearchCV(model, search_space, scoring=LogLoss, cv=cv, n_jobs=-thread_num, verbose=1)
+    else:
+        search = GridSearchCV(model, {'C': c_grid, 'l1_ratio': l1_grid}, scoring=LogLoss, cv=cv, n_jobs=thread_num, verbose=1)
+
+    # Perform the search
+    results = search.fit(X, y)
+    
+    # Plot Bayesian Optimization iterations if using BayesSearchCV
+    if use_bayes_opt:
+        plt.figure(figsize=(10, 6))
+        plt.plot(range(len(results.cv_results_['mean_test_score'])), results.cv_results_['mean_test_score'])
+        plt.xlabel('Iteration')
+        plt.ylabel('Mean Cross-Entropy loss')
+        plt.title('Bayesian Optimization Iterations')
+        plt.grid(True)
+        plt.show()
+
+    return results
+
+
+def tune_lr_model_legacy(adata, train_x_partition = 'X', random_state = 42, use_bayes_opt=True, penalty='elasticnet', sparcity = 0.2,l1_ratio=0.5,train_label = None, n_splits=5, n_repeats=3,l1_grid = [0.1,0.2,0.5,0.8], c_grid = [0.1,0.2,0.4,0.6],thread_num = -1,loss= 'logloss',sketch_tune = False, **kwargs):
     """
     General description.
 
