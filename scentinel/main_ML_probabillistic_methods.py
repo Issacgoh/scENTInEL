@@ -441,7 +441,7 @@ def tune_lr_model(adata, train_x_partition = 'X', random_state = 42, use_bayes_o
     cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
     
     # Define loss function
-    LogLoss = make_scorer(log_loss, greater_is_better=False, needs_proba=True, labels=np.unique(y_true))
+    LogLoss = make_scorer(log_loss, greater_is_better=False, needs_proba=True, labels=labels=np.unique(y))
     if use_bayes_opt == True:
         # define search space
         search_space = {'C': (np.min(c_grid), np.max(c_grid), 'log-uniform'), 
