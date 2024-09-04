@@ -212,7 +212,7 @@ def LR_train(adata, train_x_partition, train_label, penalty='elasticnet', sparci
 
 
 
-def tune_lr_model(adata, train_x_partition='X', random_state=42, use_bayes_opt=True, penalty='elasticnet', 
+def tune_lr_model_legacy(adata, train_x_partition='X', random_state=42, use_bayes_opt=True, penalty='elasticnet', 
                   sparcity=0.2, l1_ratio=0.5, train_label=None, n_splits=5, n_repeats=3, l1_grid=[0.1, 0.2, 0.5, 0.8], 
                   c_grid=[0.1, 0.2, 0.4, 0.6], thread_num=-1, loss='logloss', sketch_tune=False, **kwargs):
     """
@@ -327,14 +327,49 @@ def tune_lr_model(adata, train_x_partition='X', random_state=42, use_bayes_opt=T
     return results
 
 
-def tune_lr_model_legacy(adata, train_x_partition = 'X', random_state = 42, use_bayes_opt=True, penalty='elasticnet', sparcity = 0.2,l1_ratio=0.5,train_label = None, n_splits=5, n_repeats=3,l1_grid = [0.1,0.2,0.5,0.8], c_grid = [0.1,0.2,0.4,0.6],thread_num = -1,loss= 'logloss',sketch_tune = False, **kwargs):
+def tune_lr_model(adata, train_x_partition = 'X', random_state = 42, use_bayes_opt=True, penalty='elasticnet', sparcity = 0.2,l1_ratio=0.5,train_label = None, n_splits=5, n_repeats=3,l1_grid = [0.1,0.2,0.5,0.8], c_grid = [0.1,0.2,0.4,0.6],thread_num = -1,loss= 'logloss',sketch_tune = False, **kwargs):
     """
-    General description.
+    Perform hyperparameter tuning for a logistic regression model with stratified cross-validation.
 
     Parameters:
+    ----------
+    adata : AnnData
+        The input annotated data matrix.
+    train_x_partition : str, default='X'
+        The partition of the data to be used for training (e.g., 'X' or other latent representations).
+    random_state : int, default=42
+        The seed used by the random number generator.
+    use_bayes_opt : bool, default=True
+        If True, use Bayesian optimization for hyperparameter tuning; otherwise, use grid search.
+    penalty : str, default='elasticnet'
+        The penalty type to be used in logistic regression ('l1', 'l2', or 'elasticnet').
+    sparcity : float, default=0.2
+        The regularization strength (inverse of regularization parameter) for logistic regression.
+    l1_ratio : float, default=0.5
+        The L1 ratio used when penalty is set to 'elasticnet'.
+    train_label : str or None, default=None
+        The column name in adata.obs containing the target labels. If None, unsupervised clustering is used to generate labels.
+    n_splits : int, default=5
+        Number of splits for cross-validation.
+    n_repeats : int, default=3
+        Number of repetitions for cross-validation.
+    l1_grid : list, default=[0.1, 0.2, 0.5, 0.8]
+        Grid values for L1 ratio used in hyperparameter tuning.
+    c_grid : list, default=[0.1, 0.2, 0.4, 0.6]
+        Grid values for the regularization parameter C.
+    thread_num : int, default=-1
+        The number of jobs to run in parallel. -1 means using all processors.
+    loss : str, default='logloss'
+        The scoring metric to be used for evaluating the models.
+    sketch_tune : bool, default=False
+        If True, uses sketch-based sampling for initial model training.
+    **kwargs : dict
+        Additional keyword arguments.
 
     Returns:
-
+    -------
+    results : sklearn.model_selection._search.BaseSearchCV
+        The result object containing the best model, parameters, and scores from the hyperparameter tuning process.
     """
     from sklearn.gaussian_process.kernels import RBF
     from numpy import arange
@@ -406,7 +441,7 @@ def tune_lr_model_legacy(adata, train_x_partition = 'X', random_state = 42, use_
     cv = RepeatedStratifiedKFold(n_splits=n_splits, n_repeats=n_repeats, random_state=random_state)
     
     # Define loss function
-    LogLoss = make_scorer(log_loss, greater_is_better=False, needs_proba=True)
+    LogLoss = make_scorer(log_loss, greater_is_better=False, needs_proba=True, labels=np.unique(y_true))
     if use_bayes_opt == True:
         # define search space
         search_space = {'C': (np.min(c_grid), np.max(c_grid), 'log-uniform'), 
