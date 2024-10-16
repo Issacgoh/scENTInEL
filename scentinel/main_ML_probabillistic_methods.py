@@ -56,7 +56,7 @@ import scanpy as sc
 import sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score, RepeatedStratifiedKFold, StratifiedShuffleSplit
-from sklearn.metrics import log_loss, fbeta_score, make_scorer, confusion_matrix, metrics
+from sklearn.metrics import log_loss, fbeta_score, make_scorer, confusion_matrix
 from sklearn.metrics.pairwise import cosine_similarity
 from skopt import BayesSearchCV
 import gseapy as gp
